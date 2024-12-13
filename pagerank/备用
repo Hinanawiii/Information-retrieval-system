@@ -1,0 +1,389 @@
+
+
+
+
+    from datetime import datetime
+import networkx as nx
+from elasticsearch import Elasticsearch
+from elasticsearch.helpers import bulk
+import numpy as np
+import json
+import logging
+import os
+from typing import Dict, List, Optional
+from .graph import WebGraph
+
+class PageRankCalculator:
+    def __init__(self, 
+                 es_host: str = 'http://localhost:9201',
+                 index_name: str = 'nku_search',
+                 alpha: float = 0.85,
+                 max_iterations: int = 100,
+                 tolerance: float = 1.0e-6):
+        """
+        初始化PageRank计算器
+        :param es_host: Elasticsearch主机地址
+        :param index_name: 索引名称
+        :param alpha: 阻尼系数 (默认0.85)
+        :param max_iterations: 最大迭代次数
+        :param tolerance: 收敛阈值
+        """
+        self.es_host = es_host  # 保存es_host
+        self.es = Elasticsearch([es_host])
+        self.index_name = index_name
+        self.alpha = alpha
+        self.max_iterations = max_iterations
+        self.tolerance = tolerance
+        
+        # 配置日志
+        log_dir = 'logs'
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+            
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(levelname)s - %(message)s',
+            handlers=[
+                logging.FileHandler(os.path.join(log_dir, 'pagerank.log')),
+                logging.StreamHandler()
+            ]
+        )
+        self.logger = logging.getLogger(__name__)
+
+    def get_sorted_scores(self, scores: Dict[str, float]) -> Dict[str, float]:
+        """
+        返回排序后的分数
+        :param scores: PageRank分数字典
+        :return: 排序后的分数字典
+        """
+        return dict(sorted(scores.items(), key=lambda x: x[1], reverse=True))
+
+    def calculate_pagerank(self, graph: nx.DiGraph) -> Dict[str, float]:
+        """
+        计算PageRank值
+        :param graph: 网页关系图
+        :return: 包含每个URL的PageRank值的字典
+        """
+        try:
+            self.logger.info("开始计算PageRank...")
+            
+            # 使用networkx的pagerank实现
+            pagerank_scores = nx.pagerank(
+                graph,
+                alpha=self.alpha,
+                max_iter=self.max_iterations,
+                tol=self.tolerance,
+                personalization=None,
+                nstart=None,
+                dangling=None
+            )
+            
+            # 标准化分数到[0,1]区间
+            min_score = min(pagerank_scores.values())
+            max_score = max(pagerank_scores.values())
+            normalized_scores = {
+                url: (score - min_score) / (max_score - min_score)
+                for url, score in pagerank_scores.items()
+            }
+            
+            # 对分数进行排序
+            sorted_scores = self.get_sorted_scores(normalized_scores)
+            
+            # 输出一些统计信息
+            self.logger.info(f"PageRank计算完成. 节点数: {len(sorted_scores)}")
+            self.logger.info(f"最高分数: {list(sorted_scores.values())[0]:.6f}")
+            self.logger.info(f"最低分数: {list(sorted_scores.values())[-1]:.6f}")
+            
+            return sorted_scores
+            
+        except Exception as e:
+            self.logger.error(f"计算PageRank时出错: {str(e)}")
+            raise
+
+    def calculate_personalized_pagerank(self, 
+                                      graph: nx.DiGraph,
+                                      personalization: Dict[str, float]) -> Dict[str, float]:
+        """
+        计算个性化PageRank
+        :param graph: 网页关系图
+        :param personalization: 个性化向量
+        :return: 个性化PageRank值
+        """
+        try:
+            return nx.pagerank(
+                graph,
+                alpha=self.alpha,
+                personalization=personalization,
+                max_iter=self.max_iterations,
+                tol=self.tolerance
+            )
+        except Exception as e:
+            self.logger.error(f"计算个性化PageRank时出错: {str(e)}")
+            raise
+
+    def save_scores(self, scores: Dict[str, float], filepath: str) -> None:
+        """
+        将PageRank分数保存到文件
+        :param scores: PageRank分数字典
+        :param filepath: 保存路径
+        """
+        try:
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(scores, f, indent=4)
+            self.logger.info(f"PageRank分数已保存到: {filepath}")
+        except Exception as e:
+            self.logger.error(f"保存PageRank分数时出错: {str(e)}")
+            raise
+
+    def load_scores(self, filepath: str) -> Optional[Dict[str, float]]:
+        """
+        从文件加载PageRank分数
+        :param filepath: 文件路径
+        :return: PageRank分数字典
+        """
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                scores = json.load(f)
+            self.logger.info(f"已从 {filepath} 加载PageRank分数")
+            return scores
+        except Exception as e:
+            self.logger.error(f"加载PageRank分数时出错: {str(e)}")
+            return None
+
+    def normalize_url(self, url: str) -> str:
+        """标准化URL格式"""
+        if not url:
+            return url
+        # 移除末尾的斜杠
+        url = url.rstrip('/')
+        # 统一使用http
+        if url.startswith('https://'):
+            url = 'http://' + url[8:]
+        return url
+
+    def check_document_exists(self, url: str) -> bool:
+        """检查文档是否存在，添加详细日志"""
+
+        try:
+            # 直接使用URL查询
+            query = {
+                "query": {
+                    "term": {
+                        "url.keyword": url
+                    }
+                }
+            }
+            
+            result = self.es.search(
+                index=self.index_name,
+                body=query,
+                size=1
+            )
+            
+            exists = result['hits']['total']['value'] > 0
+            
+            if exists:
+                self.logger.debug(f"URL查询: {url}")
+
+            if not exists:
+                self.logger.debug(f"URL查询失败: {url}")
+                # 如果找不到，打印一些相近的URL作为参考
+                fuzzy_query = {
+                    "query": {
+                        "wildcard": {
+                            "url.keyword": f"*{url.split('/')[-1]}*"
+                        }
+                    }
+                }
+                fuzzy_result = self.es.search(
+                    index=self.index_name,
+                    body=fuzzy_query,
+                    size=5
+                )
+                if fuzzy_result['hits']['total']['value'] > 0:
+                    similar_urls = [hit['_source']['url'] for hit in fuzzy_result['hits']['hits']]
+                    self.logger.debug(f"发现相似的URL: {similar_urls}")
+            
+            return exists
+            
+        except Exception as e:
+            self.logger.error(f"检查文档存在性时出错 [{url}]: {str(e)}")
+            return False
+
+    def update_elasticsearch(self, scores: Dict[str, float], batch_size: int = 100) -> None:
+        """
+        更新ES中的PageRank分数，包含错误处理和重试机制
+        :param scores: PageRank分数字典
+        :param batch_size: 批量更新的大小
+        """
+        try:
+            # 首先获取ES中的所有URL
+            query = {
+                "_source": ["url"],
+                "query": {"match_all": {}}
+            }
+            
+            all_docs = []
+            for hit in self.scroll_search(query):
+                all_docs.append(hit['_source']['url'])
+            
+            self.logger.info(f"ES中共有 {len(all_docs)} 个文档")
+            
+            # 准备更新操作
+            update_succeeded = 0
+            update_failed = 0
+            retry_urls = []
+            missing_urls = []
+            
+            # 分批处理
+            actions = []
+            for url, score in scores.items():
+                normalized_url = self.normalize_url(url)
+                
+                if self.check_document_exists(url):
+                    actions.append({
+                        '_op_type': 'update',
+                        '_index': self.index_name,
+                        '_id': url, 
+                        'doc': {
+                            'pagerank_score': float(score)
+                        }
+                    })
+                else:
+                    update_failed += 1
+                    missing_urls.append({
+                        'url': url,
+                        'normalized_url': normalized_url,
+                    })
+                
+                if len(actions) >= batch_size:
+                    try:
+                        success, failed = bulk(self.es, actions, stats_only=True)
+                        update_succeeded += success
+                        update_failed += failed
+                        self.logger.info(f"批量更新完成: 成功 {success}, 失败 {failed}")
+                    except Exception as e:
+                        self.logger.error(f"批量更新出错: {str(e)}")
+                        retry_urls.extend([action['_id'] for action in actions])
+                        update_failed += len(actions)
+                    actions = []
+            
+            # 处理剩余的actions
+            if actions:
+                try:
+                    success, failed = bulk(self.es, actions, stats_only=True)
+                    update_succeeded += success
+                    update_failed += failed
+                    self.logger.info(f"最后一批更新完成: 成功 {success}, 失败 {failed}")
+                except Exception as e:
+                    self.logger.error(f"最后一批更新出错: {str(e)}")
+                    retry_urls.extend([action['_id'] for action in actions])
+                    update_failed += len(actions)
+
+            # 输出最终统计信息
+            self.logger.info(f"PageRank更新完成: 成功 {update_succeeded}, 失败 {update_failed}")
+            
+            # 保存详细的失败信息
+            if missing_urls:
+                failure_info = {
+                    'missing_urls': missing_urls,
+                    'retry_urls': retry_urls,
+                    'es_total_docs': len(all_docs),
+                    'pagerank_total_docs': len(scores),
+                    'stats': {
+                        'succeeded': update_succeeded,
+                        'failed': update_failed
+                    }
+                }
+                
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                failure_log = f'logs/failed_updates_{timestamp}.log'
+                
+                with open(failure_log, 'w', encoding='utf-8') as f:
+                    json.dump(failure_info, f, indent=2, ensure_ascii=False)
+                self.logger.info(f"失败信息已保存到 {failure_log}")
+                
+        except Exception as e:
+            self.logger.error(f"更新ES PageRank分数时出错: {str(e)}")
+            raise
+
+    def scroll_search(self, query: Dict, scroll: str = '5m', size: int = 1000):
+        """使用scroll API进行搜索"""
+        try:
+            resp = self.es.search(
+                index=self.index_name,
+                body=query,
+                scroll=scroll,
+                size=size
+            )
+            scroll_id = resp['_scroll_id']
+            
+            while True:
+                for hit in resp['hits']['hits']:
+                    yield hit
+                    
+                resp = self.es.scroll(
+                    scroll_id=scroll_id,
+                    scroll=scroll
+                )
+                
+                if not resp['hits']['hits']:
+                    break
+                    
+            # 清理scroll
+            self.es.clear_scroll(scroll_id=scroll_id)
+                    
+        except Exception as e:
+            self.logger.error(f"scroll搜索出错: {str(e)}")
+            if 'scroll_id' in locals():
+                try:
+                    self.es.clear_scroll(scroll_id=scroll_id)
+                except:
+                    pass
+            raise
+                
+        except Exception as e:
+            self.logger.error(f"更新ES PageRank分数时出错: {str(e)}")
+            raise
+
+    def run_pagerank_pipeline(self, graph_filepath: Optional[str] = None) -> None:
+        """
+        运行完整的PageRank计算流程
+        :param graph_filepath: 可选的图文件路径
+        """
+        try:
+            # 1. 构建或加载图
+            web_graph = WebGraph(es_host=self.es_host)  # 使用保存的es_host
+            if graph_filepath and os.path.exists(graph_filepath):
+                graph = web_graph.load_graph(graph_filepath)
+            else:
+                graph = web_graph.build_graph()
+                web_graph.preprocess_graph()
+                if graph_filepath:
+                    web_graph.save_graph(graph_filepath)
+            
+            # 2. 计算PageRank
+            scores = self.calculate_pagerank(graph)
+            
+            # 3. 保存分数
+            scores_filepath = 'pagerank_scores.json'
+            self.save_scores(scores, scores_filepath)
+            
+            # 4. 更新ES
+            self.update_elasticsearch(scores)
+            
+            self.logger.info("PageRank计算流程完成")
+            
+        except Exception as e:
+            self.logger.error(f"PageRank计算流程出错: {str(e)}")
+            raise
+
+def main():
+    """
+    主函数，用于命令行运行
+    """
+    calculator = PageRankCalculator()
+    calculator.run_pagerank_pipeline()
+
+if __name__ == "__main__":
+    main()

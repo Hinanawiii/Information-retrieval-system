@@ -1,5 +1,5 @@
 2024-12-13 04:44:52,663 - INFO - POST http://localhost:9200/nku_search/_search [status:404 duration:0.007s]
-2024-12-13 04:44:52,663 - ERROR - À—À˜≥ˆ¥Ì: NotFoundError(404, 'Not Found')
+2024-12-13 04:44:52,663 - ERROR - ÊêúÁ¥¢Âá∫Èîô: NotFoundError(404, 'Not Found')
 2024-12-13 04:45:06,167 - INFO - POST http://localhost:9201/nku_search/_search [status:200 duration:0.048s]
 2024-12-13 04:45:06,356 - INFO - POST http://localhost:9201/nku_search/_search [status:200 duration:0.185s]
 2024-12-13 04:45:06,390 - INFO - POST http://localhost:9201/nku_search/_search [status:200 duration:0.031s]

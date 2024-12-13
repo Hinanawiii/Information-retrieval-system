@@ -1082,3 +1082,18 @@ MongoDB 统计:
 2024-12-13 02:47:29,723 - INFO - 增量更新完成。成功: 6370 个文档，失败: 150 个文档
 2024-12-13 02:47:29,724 - INFO - 失败文档详情已保存到: logs\failed_updates_20241213_024729.log
 2024-12-13 02:47:29,725 - INFO - 数据库连接已关闭
+2024-12-14 04:44:29,674 - INFO - HEAD http://localhost:9201/nku_search [status:200 duration:0.007s]
+2024-12-14 04:44:29,685 - INFO - GET http://localhost:9201/nku_search/_stats [status:200 duration:0.010s]
+2024-12-14 04:44:31,121 - INFO - Elasticsearch 索引统计:
+2024-12-14 04:44:31,122 - INFO - 文档数量: 8470
+2024-12-14 04:44:31,122 - INFO - 索引大小: 132.95 MB
+2024-12-14 04:44:31,123 - INFO - 
+MongoDB 统计:
+2024-12-14 04:44:31,123 - INFO - 文档数量: 6620
+2024-12-14 04:44:31,127 - INFO - GET http://localhost:9201/nku_search/_mapping [status:200 duration:0.004s]
+2024-12-14 04:44:31,127 - INFO - 
+索引映射:
+2024-12-14 04:44:31,127 - INFO - {'nku_search': {'mappings': {'properties': {'anchor_texts': {'type': 'nested', 'properties': {'text': {'type': 'text', 'analyzer': 'ik_max_word'}, 'url': {'type': 'keyword'}}}, 'content': {'type': 'text', 'fields': {'keyword': {'type': 'keyword', 'ignore_above': 256}}, 'analyzer': 'ik_max_word'}, 'content_type': {'type': 'keyword'}, 'department': {'type': 'keyword'}, 'outlinks': {'type': 'keyword'}, 'pagerank_score': {'type': 'float'}, 'publish_time': {'type': 'date', 'format': 'yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis'}, 'snapshot_time': {'type': 'date', 'format': 'yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis'}, 'title': {'type': 'text', 'fields': {'keyword': {'type': 'keyword', 'ignore_above': 256}}, 'analyzer': 'ik_max_word'}, 'url': {'type': 'keyword'}}}}}
+2024-12-14 04:44:31,154 - INFO - POST http://localhost:9201/nku_search/_search [status:200 duration:0.026s]
+2024-12-14 04:44:31,164 - INFO - 没有新文档需要索引
+2024-12-14 04:44:31,167 - INFO - 数据库连接已关闭
