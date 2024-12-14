@@ -1,0 +1,84 @@
+2024-12-15 02:59:28,802 - __main__ - INFO - Starting PageRank calculation...
+2024-12-15 02:59:29,613 - graph - INFO - Graph built successfully with 6620 nodes and 16256 edges
+2024-12-15 02:59:30,129 - __main__ - INFO - PageRank calculation completed successfully
+2024-12-15 02:59:30,130 - __main__ - INFO - Updating MongoDB with PageRank scores...
+2024-12-15 02:59:30,234 - __main__ - INFO - Successfully updated PageRank scores for 6620 documents
+2024-12-15 02:59:30,234 - __main__ - INFO - PageRank pipeline completed successfully
+2024-12-15 03:00:40,122 - __main__ - INFO - Starting PageRank calculation...
+2024-12-15 03:00:40,384 - graph - INFO - Graph built successfully with 6620 nodes and 16256 edges
+2024-12-15 03:00:40,660 - __main__ - INFO - PageRank calculation completed successfully
+2024-12-15 03:00:40,661 - __main__ - INFO - Updating MongoDB with PageRank scores...
+2024-12-15 03:00:40,738 - __main__ - INFO - Successfully updated PageRank scores for 6620 documents
+2024-12-15 03:00:40,738 - __main__ - INFO - PageRank pipeline completed successfully
+2024-12-15 03:01:22,761 - __main__ - INFO - Starting PageRank calculation...
+2024-12-15 03:01:23,027 - graph - INFO - Graph built successfully with 6620 nodes and 16256 edges
+2024-12-15 03:01:23,274 - __main__ - INFO - PageRank calculation completed successfully
+2024-12-15 03:01:23,276 - __main__ - INFO - Updating MongoDB with PageRank scores...
+2024-12-15 03:01:23,374 - __main__ - INFO - Successfully updated PageRank scores for 6620 documents
+2024-12-15 03:01:23,374 - __main__ - INFO - PageRank pipeline completed successfully
+2024-12-15 03:03:38,257 - __main__ - INFO - Successfully connected to MongoDB
+2024-12-15 03:03:38,265 - __main__ - INFO - Found 6620 documents in collection
+2024-12-15 03:03:38,266 - __main__ - INFO - Starting PageRank calculation...
+2024-12-15 03:03:38,806 - __main__ - INFO - PageRank calculation completed successfully
+2024-12-15 03:03:38,808 - __main__ - INFO - PageRank calculation completed for 6620 pages
+2024-12-15 03:03:38,809 - __main__ - INFO - PageRank statistics:
+2024-12-15 03:03:38,809 - __main__ - INFO -   Max score: 0.142235
+2024-12-15 03:03:38,810 - __main__ - INFO -   Min score: 0.000026
+2024-12-15 03:03:38,810 - __main__ - INFO -   Average score: 0.000151
+2024-12-15 03:03:38,810 - __main__ - INFO - Updating MongoDB with PageRank scores...
+2024-12-15 03:03:38,893 - __main__ - INFO - Successfully updated PageRank scores for 6620 documents
+2024-12-15 03:03:38,894 - __main__ - INFO - PageRank pipeline completed successfully
+2024-12-15 03:06:00,427 - __main__ - INFO - Successfully connected to MongoDB
+2024-12-15 03:06:00,435 - __main__ - INFO - Found 6620 documents in collection
+2024-12-15 03:06:00,435 - __main__ - INFO - Starting PageRank calculation...
+2024-12-15 03:06:00,934 - __main__ - INFO - PageRank calculation completed successfully
+2024-12-15 03:06:00,937 - __main__ - INFO - PageRank calculation completed for 6620 pages
+2024-12-15 03:06:00,938 - __main__ - INFO - PageRank statistics:
+2024-12-15 03:06:00,938 - __main__ - INFO -   Max score: 0.142235
+2024-12-15 03:06:00,939 - __main__ - INFO -   Min score: 0.000026
+2024-12-15 03:06:00,940 - __main__ - INFO -   Average score: 0.000151
+2024-12-15 03:06:00,940 - __main__ - INFO - Updating MongoDB with PageRank scores...
+2024-12-15 03:06:01,073 - __main__ - INFO - Batch update completed: 500 documents modified
+2024-12-15 03:06:01,213 - __main__ - INFO - Batch update completed: 500 documents modified
+2024-12-15 03:06:01,362 - __main__ - INFO - Batch update completed: 500 documents modified
+2024-12-15 03:06:02,524 - __main__ - INFO - Batch update completed: 500 documents modified
+2024-12-15 03:06:02,999 - __main__ - INFO - Batch update completed: 500 documents modified
+2024-12-15 03:06:03,180 - __main__ - INFO - Batch update completed: 500 documents modified
+2024-12-15 03:06:03,340 - __main__ - INFO - Batch update completed: 500 documents modified
+2024-12-15 03:06:03,475 - __main__ - INFO - Batch update completed: 500 documents modified
+2024-12-15 03:06:03,612 - __main__ - INFO - Batch update completed: 500 documents modified
+2024-12-15 03:06:03,755 - __main__ - INFO - Batch update completed: 500 documents modified
+2024-12-15 03:06:03,898 - __main__ - INFO - Batch update completed: 500 documents modified
+2024-12-15 03:06:04,008 - __main__ - INFO - Batch update completed: 500 documents modified
+2024-12-15 03:06:04,156 - __main__ - INFO - Batch update completed: 500 documents modified
+2024-12-15 03:06:04,232 - __main__ - INFO - Final batch update completed: 120 documents modified
+2024-12-15 03:06:04,237 - __main__ - INFO - Verification: Found document with pagerank = 2.55688163598336e-05
+2024-12-15 03:06:04,248 - __main__ - INFO - Total documents with pagerank field: 6620
+2024-12-15 03:06:04,248 - __main__ - INFO - PageRank pipeline completed successfully
+2024-12-15 03:08:41,350 - __main__ - INFO - Successfully connected to MongoDB
+2024-12-15 03:08:41,370 - __main__ - INFO - Found 6620 documents in collection
+2024-12-15 03:08:41,370 - __main__ - INFO - Starting PageRank calculation...
+2024-12-15 03:08:41,864 - __main__ - INFO - PageRank calculation completed successfully
+2024-12-15 03:08:41,867 - __main__ - INFO - PageRank calculation completed for 6620 pages
+2024-12-15 03:08:41,867 - __main__ - INFO - PageRank statistics:
+2024-12-15 03:08:41,868 - __main__ - INFO -   Max score: 0.142235
+2024-12-15 03:08:41,868 - __main__ - INFO -   Min score: 0.000026
+2024-12-15 03:08:41,868 - __main__ - INFO -   Average score: 0.000151
+2024-12-15 03:08:41,869 - __main__ - INFO - Updating MongoDB with PageRank scores...
+2024-12-15 03:08:41,900 - __main__ - INFO - Batch update completed: 500 documents modified
+2024-12-15 03:08:41,924 - __main__ - INFO - Batch update completed: 500 documents modified
+2024-12-15 03:08:41,952 - __main__ - INFO - Batch update completed: 500 documents modified
+2024-12-15 03:08:42,131 - __main__ - INFO - Batch update completed: 500 documents modified
+2024-12-15 03:08:42,195 - __main__ - INFO - Batch update completed: 500 documents modified
+2024-12-15 03:08:42,224 - __main__ - INFO - Batch update completed: 500 documents modified
+2024-12-15 03:08:42,246 - __main__ - INFO - Batch update completed: 500 documents modified
+2024-12-15 03:08:42,270 - __main__ - INFO - Batch update completed: 500 documents modified
+2024-12-15 03:08:42,293 - __main__ - INFO - Batch update completed: 500 documents modified
+2024-12-15 03:08:42,317 - __main__ - INFO - Batch update completed: 500 documents modified
+2024-12-15 03:08:42,342 - __main__ - INFO - Batch update completed: 500 documents modified
+2024-12-15 03:08:42,378 - __main__ - INFO - Batch update completed: 500 documents modified
+2024-12-15 03:08:42,413 - __main__ - INFO - Batch update completed: 500 documents modified
+2024-12-15 03:08:42,423 - __main__ - INFO - Final batch update completed: 120 documents modified
+2024-12-15 03:08:42,425 - __main__ - INFO - Verification: Found document with pagerank_score = 2.55688163598336e-05
+2024-12-15 03:08:42,456 - __main__ - INFO - Total documents with pagerank field: 6620
+2024-12-15 03:08:42,457 - __main__ - INFO - PageRank pipeline completed successfully

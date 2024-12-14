@@ -1,36 +1,71 @@
-from elasticsearch import Elasticsearch
-from elasticsearch.helpers import bulk
+from pymongo import MongoClient
 import logging
+import os
 
-def clean_pagerank_scores(es_host='http://localhost:9201', index_name='nku_search'):
-    """清除所有文档的pagerank_score字段"""
-    es = Elasticsearch([es_host])
+def setup_logger():
+    """设置日志"""
+    # 确保日志目录存在
+    os.makedirs('logs', exist_ok=True)
+    
+    # 创建logger
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+    
+    # 添加文件处理器
+    file_handler = logging.FileHandler('logs/cleanup.log')
+    file_handler.setLevel(logging.INFO)
+    file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    file_handler.setFormatter(file_formatter)
+    logger.addHandler(file_handler)
+    
+    # 添加控制台处理器
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    console_handler.setFormatter(console_formatter)
+    logger.addHandler(console_handler)
+    
+    return logger
+
+def cleanup_pagerank():
+    """清理MongoDB中的pagerank字段"""
+    logger = setup_logger()
     
     try:
-        # 更新脚本
-        update_body = {
-            "script": {
-                "source": "ctx._source.remove('pagerank_score')",
-                "lang": "painless"
-            },
-            "query": {
-                "exists": {
-                    "field": "pagerank_score"
-                }
-            }
-        }
+        # 连接MongoDB
+        client = MongoClient('mongodb://localhost:27017/')
+        db = client['nku_search']
+        collection = db['nku_pages']
         
-        # 执行更新
-        result = es.update_by_query(
-            index=index_name,
-            body=update_body,
-            conflicts='proceed'  # 遇到冲突时继续进行
-        )
+        # 检查连接
+        collection.find_one()
+        logger.info("Successfully connected to MongoDB")
         
-        print(f"更新完成：处理了 {result['total']} 个文档，更新了 {result['updated']} 个文档")
+        # 统计有pagerank字段的文档数量
+        count_before = collection.count_documents({'pagerank': {'$exists': True}})
+        logger.info(f"Found {count_before} documents with pagerank field")
+        
+        if count_before > 0:
+            # 执行更新操作，移除pagerank字段
+            result = collection.update_many(
+                {'pagerank': {'$exists': True}},
+                {'$unset': {'pagerank': ""}}
+            )
+            
+            logger.info(f"Removed pagerank field from {result.modified_count} documents")
+        else:
+            logger.info("No documents found with pagerank field")
+        
+        # 验证清理结果
+        count_after = collection.count_documents({'pagerank': {'$exists': True}})
+        logger.info(f"Verification: {count_after} documents still have pagerank field")
+        
+        client.close()
+        logger.info("Cleanup completed successfully")
         
     except Exception as e:
-        print(f"清除PageRank分数时出错: {str(e)}")
+        logger.error(f"Error during cleanup: {str(e)}")
+        raise
 
 if __name__ == "__main__":
-    clean_pagerank_scores()
+    cleanup_pagerank()

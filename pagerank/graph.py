@@ -1,153 +1,118 @@
-from elasticsearch import Elasticsearch
+from pymongo import MongoClient
 import networkx as nx
 import logging
-import os
-from typing import Dict, Set, Optional
+from typing import Dict, Set, List
+import json
 
-class WebGraph:
-    def __init__(self, es_host: str = 'http://localhost:9201', index_name: str = 'nku_search'):
+class GraphBuilder:
+    def __init__(self, mongo_uri: str = "mongodb://localhost:27017/"):
         """
-        初始化Web图构建器
-        :param es_host: Elasticsearch主机地址
-        :param index_name: 索引名称
+        初始化GraphBuilder
+        
+        Args:
+            mongo_uri: MongoDB连接URI
         """
-        self.es = Elasticsearch([es_host])
-        self.index_name = index_name
+        self.client = MongoClient(mongo_uri)
+        self.db = self.client['nku_search']
+        self.collection = self.db['nku_pages']
         self.graph = nx.DiGraph()
-        self.url_to_id = {}  # 存储URL到文档ID的映射
         
         # 配置日志
-        log_dir = 'logs'
-        if not os.path.exists(log_dir):
-            os.makedirs(log_dir)
-            
         logging.basicConfig(
+            filename='logs/graph_builder.log',
             level=logging.INFO,
-            format='%(asctime)s - %(levelname)s - %(message)s',
-            handlers=[
-                logging.FileHandler(os.path.join(log_dir, 'graph_builder.log')),
-                logging.StreamHandler()
-            ]
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
         self.logger = logging.getLogger(__name__)
 
-    def build_graph(self, batch_size: int = 1000) -> nx.DiGraph:
+    def build_graph(self) -> nx.DiGraph:
         """
-        从ES构建网页关系图
-        :param batch_size: ES查询的批量大小
-        :return: 构建好的有向图
+        从MongoDB构建有向图
+        
+        Returns:
+            构建好的NetworkX有向图
         """
         try:
-            # 使用scroll API获取所有文档
-            query = {
-                "_source": ["url", "outlinks"],
-                "query": {
-                    "match_all": {}
-                }
-            }
+            # 获取所有文档
+            documents = self.collection.find({}, {'_id': 1, 'url': 1, 'outlinks': 1})
             
-            # 初始化scroll
-            page = self.es.search(
-                index=self.index_name,
-                body=query,
-                scroll='5m',
-                size=batch_size
-            )
+            # 构建URL到ID的映射
+            url_to_id: Dict[str, str] = {}
+            for doc in documents:
+                url_to_id[doc['url']] = str(doc['_id'])
             
-            scroll_id = page['_scroll_id']
-            hits = page['hits']['hits']
+            # 重新获取文档（因为MongoDB游标已经用完）
+            documents = self.collection.find({}, {'_id': 1, 'url': 1, 'outlinks': 1})
             
-            processed = 0
-            total_docs = page['hits']['total']['value']
-            self.logger.info(f"开始构建图,总文档数: {total_docs}")
-            
-            while hits:
-                for hit in hits:
-                    url = hit['_source']['url']
-                    outlinks = hit['_source'].get('outlinks', [])
-                    doc_id = hit['_id']
-                    
-                    # 保存URL到文档ID的映射
-                    self.url_to_id[url] = doc_id
-                    
-                    # 添加节点和边
-                    self.graph.add_node(url)
-                    for outlink in outlinks:
-                        if outlink != url:  # 避免自环
-                            self.graph.add_node(outlink)
-                            self.graph.add_edge(url, outlink)
-                    
-                    processed += 1
-                    if processed % 1000 == 0:
-                        self.logger.info(f"已处理 {processed}/{total_docs} 文档")
+            # 添加节点和边
+            for doc in documents:
+                source_id = str(doc['_id'])
+                self.graph.add_node(source_id)
                 
-                # 获取下一批结果
-                page = self.es.scroll(scroll_id=scroll_id, scroll='5m')
-                scroll_id = page['_scroll_id']
-                hits = page['hits']['hits']
+                outlinks = doc.get('outlinks', [])
+                for target_url in outlinks:
+                    if target_url in url_to_id:
+                        target_id = url_to_id[target_url]
+                        self.graph.add_edge(source_id, target_id)
             
-            self.logger.info(f"图构建完成. 节点数: {self.graph.number_of_nodes()}, "
-                           f"边数: {self.graph.number_of_edges()}, "
-                           f"URL映射数: {len(self.url_to_id)}")
-            
+            self.logger.info(f"Graph built successfully with {self.graph.number_of_nodes()} nodes and {self.graph.number_of_edges()} edges")
             return self.graph
             
         except Exception as e:
-            self.logger.error(f"构建图时出错: {str(e)}")
+            self.logger.error(f"Error building graph: {str(e)}")
             raise
 
-    def get_dangling_nodes(self) -> Set[str]:
-        """获取没有出链的节点"""
-        return {node for node in self.graph.nodes() 
-                if self.graph.out_degree(node) == 0}
-
-    def get_orphan_nodes(self) -> Set[str]:
-        """获取没有入链的节点"""
-        return {node for node in self.graph.nodes() 
-                if self.graph.in_degree(node) == 0}
-
-    def get_graph_statistics(self) -> Dict:
-        """获取图的统计信息"""
-        stats = {
-            'total_nodes': self.graph.number_of_nodes(),
-            'total_edges': self.graph.number_of_edges(),
-            'dangling_nodes': len(self.get_dangling_nodes()),
-            'orphan_nodes': len(self.get_orphan_nodes()),
-            'is_strongly_connected': nx.is_strongly_connected(self.graph),
-            'weakly_connected_components': nx.number_weakly_connected_components(self.graph),
-            'average_degree': sum(dict(self.graph.degree()).values()) / self.graph.number_of_nodes(),
-            'mapped_urls': len(self.url_to_id)
-        }
-        return stats
-
-    def preprocess_graph(self, remove_orphans: bool = True) -> None:
-        """预处理图,可选择性地移除孤立节点"""
-        if remove_orphans:
-            orphans = self.get_orphan_nodes()
-            self.graph.remove_nodes_from(orphans)
-            self.logger.info(f"已移除 {len(orphans)} 个孤立节点")
+    def get_graph(self) -> nx.DiGraph:
+        """
+        获取构建好的图
         
-        # 确保图是连通的
-        if not nx.is_weakly_connected(self.graph):
-            largest_cc = max(nx.weakly_connected_components(self.graph), key=len)
-            self.graph = self.graph.subgraph(largest_cc).copy()
-            self.logger.info("已提取最大连通分量")
+        Returns:
+            构建好的NetworkX有向图
+        """
+        return self.graph
 
-    def save_graph(self, filepath: str) -> None:
-        """保存图到文件"""
-        nx.write_gpickle(self.graph, filepath)
-        self.logger.info(f"图已保存到: {filepath}")
-
-    def load_graph(self, filepath: str) -> Optional[nx.DiGraph]:
-        """从文件加载图"""
+    def save_graph(self, filepath: str):
+        """
+        将图结构保存到文件
+        
+        Args:
+            filepath: 保存路径
+        """
         try:
-            self.graph = nx.read_gpickle(filepath)
-            self.logger.info(f"已从 {filepath} 加载图")
-            return self.graph
+            # 将图转换为字典格式
+            graph_data = nx.node_link_data(self.graph)
+            
+            # 保存到文件
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(graph_data, f, ensure_ascii=False, indent=2)
+            
+            self.logger.info(f"Graph saved successfully to {filepath}")
+            
         except Exception as e:
-            self.logger.error(f"加载图时出错: {str(e)}")
-            return None
+            self.logger.error(f"Error saving graph: {str(e)}")
+            raise
 
-    def get_url_id_mapping(self) -> Dict[str, str]:
-        """获取URL到文档ID的映射"""
-        return self.url_to_id.copy()
+    def load_graph(self, filepath: str):
+        """
+        从文件加载图结构
+        
+        Args:
+            filepath: 图数据文件路径
+        """
+        try:
+            # 从文件读取图数据
+            with open(filepath, 'r', encoding='utf-8') as f:
+                graph_data = json.load(f)
+            
+            # 转换为NetworkX图
+            self.graph = nx.node_link_graph(graph_data)
+            
+            self.logger.info(f"Graph loaded successfully from {filepath}")
+            
+        except Exception as e:
+            self.logger.error(f"Error loading graph: {str(e)}")
+            raise
+
+    def __del__(self):
+        """清理MongoDB连接"""
+        self.client.close()
