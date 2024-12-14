@@ -1,0 +1,4 @@
+2024-12-15 00:53:03,513 - INFO - POST http://localhost:9201/nku_search/_search [status:200 duration:0.302s]
+2024-12-15 00:53:03,528 - INFO - Merged 0 pagerank fields
+2024-12-15 00:53:03,531 - INFO - Updated 0 documents with pagerank scores in ES
+2024-12-15 00:53:03,536 - INFO - POST http://localhost:9201/nku_search/_count [status:200 duration:0.004s]

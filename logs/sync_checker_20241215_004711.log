@@ -1,0 +1,9 @@
+2024-12-15 00:47:11,444 - INFO - GET http://localhost:9201/nku_search/_mapping [status:200 duration:0.007s]
+2024-12-15 00:47:11,444 - INFO - Current ES mapping:
+2024-12-15 00:47:11,444 - INFO - {'nku_search': {'mappings': {'properties': {'anchor_texts': {'type': 'nested', 'properties': {'text': {'type': 'text', 'analyzer': 'ik_max_word'}, 'url': {'type': 'keyword'}}}, 'content': {'type': 'text', 'fields': {'keyword': {'type': 'keyword', 'ignore_above': 256}}, 'analyzer': 'ik_max_word'}, 'content_type': {'type': 'keyword'}, 'department': {'type': 'keyword'}, 'outlinks': {'type': 'keyword'}, 'pagerank_score': {'type': 'float'}, 'publish_time': {'type': 'date', 'format': 'yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis'}, 'snapshot_time': {'type': 'date', 'format': 'yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis'}, 'title': {'type': 'text', 'fields': {'keyword': {'type': 'keyword', 'ignore_above': 256}}, 'analyzer': 'ik_max_word'}, 'url': {'type': 'keyword'}}}}}
+2024-12-15 00:47:11,463 - INFO - POST http://localhost:9201/nku_search/_count [status:200 duration:0.002s]
+2024-12-15 00:47:11,463 - INFO - MongoDB documents: 0
+2024-12-15 00:47:11,463 - INFO - Elasticsearch documents: 6444
+2024-12-15 00:47:11,463 - WARNING - Document counts don't match! MongoDB: 0, ES: 6444
+2024-12-15 00:47:11,468 - INFO - Added pagerank_score field to 0 documents
+2024-12-15 00:47:11,468 - INFO - Updated pagerank scores for 0 documents
