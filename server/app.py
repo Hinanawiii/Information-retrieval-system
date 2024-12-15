@@ -1,14 +1,20 @@
-#app.py
+import sys
+import os
+
+# 获取当前文件的目录
+current_dir = os.path.dirname(os.path.abspath(__file__))
+# 获取项目根目录
+root_dir = os.path.dirname(current_dir)
+# 将项目根目录添加到 Python 路径
+sys.path.append(root_dir)
+
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from search import SearchEngine
 from datetime import datetime
 import logging
 import json
-import os
-import webbrowser
 from recommend.recommend import UserBasedRecommender
-
 
 app = Flask(__name__)
 CORS(app)  # 启用跨域支持
@@ -254,4 +260,4 @@ def init_app():
 
 if __name__ == '__main__':
     app = init_app()
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='127.0.0.1', port=5000, debug=True)
