@@ -1,3 +1,4 @@
+#search.py
 from elasticsearch import Elasticsearch
 from datetime import datetime
 import logging
@@ -34,53 +35,85 @@ class SearchEngine:
         self.logger = logging.getLogger(__name__)
 
     def basic_search(self, query, page=1, size=10, **kwargs):
-        """基础搜索功能
-        
-        Args:
-            query (str): 搜索关键词
-            page (int): 页码，从1开始
-            size (int): 每页结果数
-            **kwargs: 其他搜索参数，包括：
-                - department: 部门筛选
-                - start_date: 起始日期 (YYYY-MM-DD)
-                - end_date: 结束日期 (YYYY-MM-DD)
-                - sort_by: 排序字段
-                - sort_order: 排序顺序 ('asc' 或 'desc')
-        
-        Returns:
-            dict: 搜索结果，包含总数、耗时和文档列表
-        """
         try:
             # 构建搜索条件
             must_conditions = []
             
             # 基础全文搜索
             if query:
-                should_conditions = [
-                    {
-                        "multi_match": {
-                            "query": query,
-                            "fields": ["title^3", "content", "department^1.5"],
-                            "type": "best_fields",
-                            "analyzer": "ik_smart",
-                            "tie_breaker": 0.3,
-                            "minimum_should_match": "80%"
-                        }
-                    },
-                    {
-                        "multi_match": {
-                            "query": query,
-                            "fields": ["title^2", "content"],
-                            "type": "phrase",
-                            "analyzer": "ik_max_word"
-                        }
-                    }
-                ]
-                must_conditions.append({
+                text_query = {
                     "bool": {
-                        "should": should_conditions
+                        "should": [
+                            # 标题匹配，赋予最高权重
+                            {
+                                "match": {
+                                    "title": {
+                                        "query": query,
+                                        "boost": 4.0,
+                                        "analyzer": "ik_max_word"
+                                    }
+                                }
+                            },
+                            # 内容匹配
+                            {
+                                "match": {
+                                    "content": {
+                                        "query": query,
+                                        "boost": 1.0,
+                                        "analyzer": "ik_max_word"
+                                    }
+                                }
+                            },
+                            # 锚文本匹配
+                            {
+                                "nested": {
+                                    "path": "anchor_texts",
+                                    "query": {
+                                        "match": {
+                                            "anchor_texts.text": {
+                                                "query": query,
+                                                "boost": 2.0,
+                                                "analyzer": "ik_max_word"
+                                            }
+                                        }
+                                    },
+                                    "score_mode": "avg"  # 使用平均分数
+                                }
+                            },
+                            # 短语匹配，提高精确匹配的权重
+                            {
+                                "multi_match": {
+                                    "query": query,
+                                    "fields": ["title^3", "content"],
+                                    "type": "phrase",
+                                    "boost": 2.0
+                                }
+                            }
+                        ]
                     }
-                })
+                }
+                
+                # 使用 function_score 查询结合 PageRank
+                main_query = {
+                    "function_score": {
+                        "query": text_query,
+                        "functions": [
+                            {
+                                "field_value_factor": {
+                                    "field": "pagerank_score",
+                                    "factor": 0.2,        # PageRank 权重因子
+                                    "modifier": "log1p",  # 使用 log1p 来平滑高分数
+                                    "missing": 0
+                                }
+                            }
+                        ],
+                        "boost_mode": "sum",     # 将相关性分数和 PageRank 分数相加
+                        "score_mode": "multiply", # 如果有多个函数，将它们的分数相乘
+                        "min_score": 0.1         # 设置最小分数阈值
+                    }
+                }
+                
+                must_conditions.append(main_query)
             
             # 部门筛选
             if kwargs.get('department'):
@@ -90,7 +123,7 @@ class SearchEngine:
                     }
                 })
             
-            # 日期范围筛选
+            # 日期范围筛选（如果有的话）
             date_range = {}
             if kwargs.get('start_date'):
                 date_range['gte'] = kwargs['start_date']
@@ -103,7 +136,7 @@ class SearchEngine:
                     }
                 })
             
-            # 构建查询体
+            # 构建完整的查询体
             body = {
                 "query": {
                     "bool": {
@@ -112,6 +145,9 @@ class SearchEngine:
                 },
                 "from": (page - 1) * size,
                 "size": size,
+                "_source": {
+                    "excludes": ["anchor_texts", "outlinks"]  # 排除不需要返回的大字段
+                },
                 "highlight": {
                     "fields": {
                         "title": {
@@ -128,16 +164,10 @@ class SearchEngine:
                 }
             }
             
-            # 添加排序
+            # 添加自定义排序
             if kwargs.get('sort_by'):
                 sort_order = kwargs.get('sort_order', 'desc')
                 body["sort"] = [{kwargs['sort_by']: sort_order}]
-            else:
-                # 默认按相关性排序，如果有PageRank分数则考虑在内
-                body["sort"] = [
-                    "_score",
-                    {"pagerank_score": {"order": "desc", "missing": "_last"}}
-                ]
             
             # 执行搜索
             response = self.es.search(
@@ -155,10 +185,8 @@ class SearchEngine:
                     'title': source.get('title', ''),
                     'content': source.get('content', ''),
                     'department': source.get('department', ''),
-                    'publish_time': source.get('publish_time', ''),
                     'score': hit['_score'],
-                    'pagerank_score': source.get('pagerank_score', 0),
-                    'snapshot_time': source.get('snapshot_time', '')
+                    'pagerank_score': source.get('pagerank_score', 0)
                 }
                 
                 # 添加高亮结果

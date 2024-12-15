@@ -1,3 +1,4 @@
+#app.py
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from search import SearchEngine
@@ -6,6 +7,8 @@ import logging
 import json
 import os
 import webbrowser
+from recommend.recommend import UserBasedRecommender
+
 
 app = Flask(__name__)
 CORS(app)  # 启用跨域支持
@@ -32,6 +35,11 @@ logger = logging.getLogger(__name__)
 
 # 初始化搜索引擎
 search_engine = SearchEngine(
+    es_host='http://localhost:9201',
+    index_name='nku_search'
+)
+
+recommender = UserBasedRecommender(
     es_host='http://localhost:9201',
     index_name='nku_search'
 )
@@ -100,6 +108,38 @@ def search():
 
     except Exception as e:
         logger.error(f"搜索请求处理出错: {str(e)}")
+        return jsonify({'error': '服务器内部错误'}), 500
+
+@app.route('/api/recommendations', methods=['GET'])
+def get_recommendations():
+    """获取用户推荐"""
+    try:
+        # 获取用户ID
+        user_id = request.args.get('user_id')
+        if not user_id:
+            return jsonify({'error': '需要用户ID'}), 400
+            
+        # 从搜索历史文件中获取用户历史
+        history_data = {}
+        if os.path.exists(SEARCH_HISTORY_FILE):
+            with open(SEARCH_HISTORY_FILE, 'r', encoding='utf-8') as f:
+                history_data = json.load(f)
+        
+        # 获取用户的搜索历史
+        user_history = history_data.get(user_id, [])
+        
+        # 获取推荐
+        recommendations = recommender.get_user_recommendations(
+            user_id=user_id,
+            search_history=user_history
+        )
+        
+        return jsonify({
+            'recommendations': recommendations
+        })
+        
+    except Exception as e:
+        logger.error(f"获取推荐时出错: {str(e)}")
         return jsonify({'error': '服务器内部错误'}), 500
 
 @app.route('/api/login', methods=['POST'])
