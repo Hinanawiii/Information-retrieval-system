@@ -25,7 +25,7 @@
 
       <!-- 搜索建议列表 -->
       <div
-        v-if="suggestions.length > 0"
+        v-if="suggestions?.length > 0"
         class="mt-2 bg-white rounded-lg shadow-lg border border-gray-200"
       >
         <ul>

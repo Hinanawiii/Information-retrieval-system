@@ -205,6 +205,7 @@ const handleSearch = async () => {
   const startTime = Date.now();
 
   try {
+    // 构建搜索参数
     const queryParams = new URLSearchParams({
       q: searchQuery.value,
       page: currentPage.value.toString(),
@@ -218,11 +219,7 @@ const handleSearch = async () => {
       queryParams.append('department', filters.value.department);
     }
 
-    console.log(
-      'Sending search request to:',
-      `/api/search?${queryParams.toString()}`
-    );
-
+    // 执行搜索
     const response = await fetch(`/api/search?${queryParams.toString()}`, {
       headers: {
         Accept: 'application/json',
@@ -232,12 +229,28 @@ const handleSearch = async () => {
     if (!response.ok) throw new Error('搜索请求失败');
 
     const data = await response.json();
-    console.log('Search response:', data);
-
-    // 修改这里以匹配后端返回的数据结构
     results.value = data.results || [];
     totalResults.value = data.total || 0;
     searchTime.value = ((Date.now() - startTime) / 1000).toFixed(2);
+
+    // 记录搜索历史（如果用户已登录）
+    const username = localStorage.getItem('username');
+    if (username && searchQuery.value.trim()) {
+      try {
+        await fetch('/api/search-history', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            username: username,
+            search_text: searchQuery.value.trim(),
+          }),
+        });
+      } catch (error) {
+        console.error('记录搜索历史失败:', error);
+      }
+    }
 
     // 更新 URL
     router.push({
@@ -255,7 +268,6 @@ const handleSearch = async () => {
     loading.value = false;
   }
 };
-
 const handlePageChange = (page) => {
   currentPage.value = page;
   handleSearch();

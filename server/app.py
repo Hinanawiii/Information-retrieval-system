@@ -15,6 +15,7 @@ from datetime import datetime
 import logging
 import json
 from recommend.recommend import UserBasedRecommender
+from auth import token_required, verify_user, generate_token, get_user_role
 
 app = Flask(__name__)
 CORS(app)  # 启用跨域支持
@@ -148,6 +149,18 @@ def get_recommendations():
         logger.error(f"获取推荐时出错: {str(e)}")
         return jsonify({'error': '服务器内部错误'}), 500
 
+# 添加token验证接口
+@app.route('/api/verify-token', methods=['GET'])
+@token_required
+def verify_token(current_user):
+    """验证token"""
+    return jsonify({
+        'valid': True,
+        'username': current_user,
+        'role': get_user_role(current_user)
+    })
+
+# 替换原有的登录路由
 @app.route('/api/login', methods=['POST'])
 def login():
     """用户登录"""
@@ -156,26 +169,30 @@ def login():
         username = data.get('username')
         password = data.get('password')
 
-        if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
-            return jsonify({'message': '登录成功'})
+        if verify_user(username, password):
+            token = generate_token(username)
+            role = get_user_role(username)
+            return jsonify({
+                'token': token,
+                'username': username,
+                'role': role
+            })
         else:
             return jsonify({'error': '用户名或密码错误'}), 401
+            
     except Exception as e:
         logger.error(f"登录处理出错: {str(e)}")
         return jsonify({'error': '服务器内部错误'}), 500
 
 @app.route('/api/search-history', methods=['GET'])
-def get_search_history():
+@token_required
+def get_search_history(current_user):
     """获取用户搜索历史"""
     try:
-        username = request.args.get('username')
-        if not username:
-            return jsonify({'error': '需要用户名'}), 400
-
         if os.path.exists(SEARCH_HISTORY_FILE):
             with open(SEARCH_HISTORY_FILE, 'r', encoding='utf-8') as f:
                 history_data = json.load(f)
-                user_history = history_data.get(username, [])
+                user_history = history_data.get(current_user, [])
                 return jsonify({'history': user_history})
         return jsonify({'history': []})
     except Exception as e:

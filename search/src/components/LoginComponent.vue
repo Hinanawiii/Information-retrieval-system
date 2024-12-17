@@ -116,11 +116,15 @@ const handleLogin = async () => {
     const data = await response.json();
 
     if (response.ok) {
-      // 如果选择了"记住我"，保存用户信息
+      // 存储token和用户信息
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('username', data.username);
+      localStorage.setItem('userRole', data.role);
+
       if (rememberMe.value) {
-        localStorage.setItem('username', username.value);
+        localStorage.setItem('rememberMe', 'true');
       } else {
-        localStorage.removeItem('username');
+        localStorage.removeItem('rememberMe');
       }
 
       // 登录成功，重定向到首页
@@ -129,15 +133,21 @@ const handleLogin = async () => {
       error.value = data.error || '登录失败';
     }
   } catch (err) {
+    console.error('登录错误:', err);
     error.value = '网络错误，请稍后重试';
   } finally {
     loading.value = false;
   }
 };
 
-// 检查是否有保存的用户名
-if (localStorage.getItem('username')) {
-  username.value = localStorage.getItem('username');
-  rememberMe.value = true;
-}
+// 检查是否记住登录状态
+const checkRememberMe = () => {
+  if (localStorage.getItem('rememberMe') === 'true') {
+    username.value = localStorage.getItem('username') || '';
+    rememberMe.value = true;
+  }
+};
+
+// 在组件挂载时检查
+checkRememberMe();
 </script>
