@@ -140,6 +140,67 @@
   </div>
 </template>
 
+<template>
+  <div class="w-full max-w-2xl mx-auto mt-4 p-4">
+    <div
+      v-if="recommendations.length > 0"
+      class="bg-white shadow rounded-lg p-4"
+    >
+      <h3 class="text-lg font-semibold mb-3 text-gray-800">为您推荐</h3>
+      <div class="space-y-3">
+        <div
+          v-for="item in recommendations"
+          :key="item.url"
+          class="p-3 hover:bg-gray-50 rounded transition-colors"
+        >
+          <a :href="item.url" class="block">
+            <h4 class="text-blue-600 hover:text-blue-800 font-medium mb-1">
+              {{ item.title }}
+            </h4>
+            <div class="flex items-center text-sm text-gray-600">
+              <span class="mr-3">{{ item.department }}</span>
+              <span>相关度: {{ (item.score * 100).toFixed(1) }}%</span>
+            </div>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  name: 'RecommendationComponent',
+  data() {
+    return {
+      recommendations: [],
+    };
+  },
+  mounted() {
+    this.fetchRecommendations();
+  },
+  methods: {
+    async fetchRecommendations() {
+      try {
+        const username = localStorage.getItem('username');
+        if (!username) return;
+
+        const response = await fetch(
+          `/api/recommendations?user_id=${username}`
+        );
+        const data = await response.json();
+
+        if (data.recommendations) {
+          this.recommendations = data.recommendations;
+        }
+      } catch (error) {
+        console.error('获取推荐失败:', error);
+      }
+    },
+  },
+};
+</script>
+
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -268,6 +329,7 @@ const handleSearch = async () => {
     loading.value = false;
   }
 };
+
 const handlePageChange = (page) => {
   currentPage.value = page;
   handleSearch();
